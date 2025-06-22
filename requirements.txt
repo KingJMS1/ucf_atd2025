@@ -1,0 +1,6 @@
+numpy
+pyproj
+pandas
+geopandas
+scikit-learn
+atd2025
