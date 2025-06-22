@@ -12,6 +12,7 @@ def run(file: str) -> Tuple[pd.DataFrame, str]:
         return pd.read_csv(path), path
     
     data = pd.read_csv(data_loc(file))
+    data["time"] = pd.to_datetime(data["time"])
     points = data.apply(lambda x: atd2025.Point(x["point_id"], x["time"], x["lat"], x["lon"], x["course"], x["speed"]), axis=1)
     base_results = atd2025.baseline([x for x in points])
     atd2025.predictions_to_csv(path, base_results)
