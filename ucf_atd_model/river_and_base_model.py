@@ -95,13 +95,14 @@ def run(file: str, **kwargs):
         print("  " + rname)
         truth_proj = truth.to_crs(rcrs)                                     # Project to the coordinate system the river is in
         rfilter = rgeom.distance(truth_proj.geometry).to_numpy() < 1000     # Filter down to points within 1km of the river
+        print(np.sum(rfilter))
         rfilter = rfilter & (~in_river)                                     # Ensure we don't conflict with more important rivers, list is sorted in order of importance
         truth_proj = truth_proj[rfilter]
         # Save the subset and make sure we don't use these points again
         river_filters.append(rfilter)
         in_river = in_river | rfilter
 
-        # Setuo to apply dbscan to slow points
+        # Setup to apply dbscan to slow points
         xy = truth_proj.get_coordinates()
         x = xy["x"].to_numpy()
         y = xy["y"].to_numpy()
@@ -115,10 +116,13 @@ def run(file: str, **kwargs):
         ly = y[slows]
         lt = t[slows]
 
-        # Cluster slow points
-        dists = dbscan_dist(lx, ly, lt, lx, ly, lt)
-        dbscan = sklearn.cluster.DBSCAN(eps=175, metric="precomputed", min_samples=2)
-        clusters_dbscan = dbscan.fit_predict(dists)
+        # Ensure we don't run dbscan on nothing
+        clusters_dbscan = np.array([])
+        if np.sum(slows) != 0:
+            # Cluster slow points
+            dists = dbscan_dist(lx, ly, lt, lx, ly, lt)
+            dbscan = sklearn.cluster.DBSCAN(eps=175, metric="precomputed", min_samples=2)
+            clusters_dbscan = dbscan.fit_predict(dists)
 
         # Get distance along the length of the river of all points
         dist_along_river = rgeom.project(truth_proj.geometry).to_numpy()
@@ -146,7 +150,9 @@ def run(file: str, **kwargs):
         rout_fast = do_cluster(closest, closest_dists)
         
         # Interleave slow results with fast results
-        nullID = np.max(clusters_dbscan + 2)
+        nullID = 0
+        if len(clusters_dbscan) != 0:
+            nullID = np.max(clusters_dbscan + 2)
         newOut = np.ones_like(speed, "int64") * nullID
         newOut[slows] = clusters_dbscan                                             # Fill slow points with DBSCAN results
         newOut[newOut == nullID] = (rout_fast["track_id"].to_numpy() + nullID)      # Replace fast points with results from fast model
