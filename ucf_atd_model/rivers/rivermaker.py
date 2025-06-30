@@ -11,14 +11,17 @@ def get_river_data() -> list[tuple[str, shp.LineString, pp.CRS]]:
     wgs84 = pp.CRS.from_epsg(4326)
     miss_utm = pp.CRS.from_epsg(32615)
     icw_sfl_utm = pp.CRS.from_epsg(32617)
+    mobile_utm = pp.CRS.from_epsg(32616)
 
     # Read in river data
     location = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    filePaths = ["USA_Rivers_and_Streams.geojson", "Houston_Ship_Channel.kml", "Sabine-Neches_Ship_Channel.geojson"]
+    filePaths = ["USA_Rivers_and_Streams.geojson", "Houston_Ship_Channel.kml", "Sabine-Neches_Ship_Channel.geojson", "Mobile_Ship_Channel.geojson", "Jacksonville_Port_and_Channel.geojson"]
     urls = [
         'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/USA_Rivers_and_Streams.geojson', 
         'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Houston_Ship_Channel.kml',
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Sabine-Neches_Ship_Channel.geojson'
+        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Sabine-Neches_Ship_Channel.geojson',
+        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Mobile_Ship_Channel.geojson',
+        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Jacksonville_Port_and_Channel.geojson'
     ]
 
     for i, val in enumerate(filePaths):
@@ -88,15 +91,24 @@ def get_river_data() -> list[tuple[str, shp.LineString, pp.CRS]]:
     sn_utm = icw_w_utm
     sn_ship_geom = gpd.read_file(filePaths[2]).to_crs(sn_utm).geometry.iloc[0]
 
+    # Mobile Ship Channel
+    mobile_ship_geom = gpd.read_file(filePaths[3]).to_crs(mobile_utm).geometry.iloc[0]
+    mobile_ship_geom = mobile_ship_geom.segmentize(1000)
+
+    # Jacksonville Port/Channel
+    jville_port_geom = gpd.read_file(filePaths[4]).to_crs(icw_sfl_utm).geometry.iloc[0]
+    jville_utm = icw_sfl_utm
 
     # Export the river names, geometries, and utm zones used by each
     output = [
         ("Mississippi", miss_geom, miss_utm), 
         # ("ICW_SFL", icw_sfl_geom, icw_sfl_utm)    # Makes accuracy worse for now, ignore
+        # ("Mobile Ship Channel", mobile_ship_geom, mobile_utm), # Makes accuracy worse for now, ignore
         ("ICW_W", icw_w_geom, icw_w_utm),
         ("Neches", neches_geom, neches_utm),
         ("Houston Ship Channel", h_ship_geom, h_ship_utm),
-        ("Sabine-Neches Ship Channel", sn_ship_geom, sn_utm)
+        ("Sabine-Neches Ship Channel", sn_ship_geom, sn_utm),
+        ("Jacksonville Port/Channel", jville_port_geom, jville_utm)
     ]
     
     return output
