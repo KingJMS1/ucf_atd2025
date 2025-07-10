@@ -9,6 +9,7 @@ __pycache__/
 # Geospatial files
 *.geojson
 *.kml
+*.csv
 
 # Distribution / packaging
 .Python

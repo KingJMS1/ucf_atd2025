@@ -4,3 +4,4 @@ pandas
 geopandas
 scikit-learn
 atd2025
+pytorch

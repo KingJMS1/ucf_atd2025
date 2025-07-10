@@ -15,14 +15,18 @@ def get_river_data() -> list[tuple[str, shp.LineString, pp.CRS]]:
 
     # Read in river data
     location = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    filePaths = ["USA_Rivers_and_Streams.geojson", "Houston_Ship_Channel.kml", "Sabine-Neches_Ship_Channel.geojson", "Mobile_Ship_Channel.geojson", "Jacksonville_Port_and_Channel.geojson"]
-    urls = [
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/USA_Rivers_and_Streams.geojson', 
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Houston_Ship_Channel.kml',
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Sabine-Neches_Ship_Channel.geojson',
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Mobile_Ship_Channel.geojson',
-        'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/Jacksonville_Port_and_Channel.geojson'
+    filePaths = [
+        "USA_Rivers_and_Streams.geojson", 
+        "Houston_Ship_Channel.kml", 
+        "Sabine-Neches_Ship_Channel.geojson", 
+        "Mobile_Ship_Channel.geojson", 
+        "Jacksonville_Port_and_Channel.geojson", 
+        "Miami_Port.geojson", 
+        "Miami_River.geojson", 
+        "Miami_Yacht_Club.geojson", 
+        "FT_Lauderdale_River_and_Port.geojson"
     ]
+    urls = [ 'https://www.maserv.work/ATD/model2/ucf_atd_model/rivers/' + x for x in filePaths]
 
     for i, val in enumerate(filePaths):
         filePath = os.path.join(location, val)
@@ -99,6 +103,22 @@ def get_river_data() -> list[tuple[str, shp.LineString, pp.CRS]]:
     jville_port_geom = gpd.read_file(filePaths[4]).to_crs(icw_sfl_utm).geometry.iloc[0]
     jville_utm = icw_sfl_utm
 
+    # Miami Port
+    miami_port_geom = gpd.read_file(filePaths[5]).to_crs(icw_sfl_utm).geometry.iloc[0]
+    miami_utm = icw_sfl_utm
+
+    # Miami River
+    miami_river_geom = gpd.read_file(filePaths[6]).to_crs(miami_utm).geometry.iloc[0]
+    
+    # Miami Yacht Club
+    miami_yacht_geom = gpd.read_file(filePaths[7]).to_crs(miami_utm).geometry.iloc[0]
+
+    # Fort Lauderdale
+    prefix = "Fort Lauderdale Geometry "
+    lauderdaleOut = []
+    for i, x in enumerate(gpd.read_file(filePaths[8]).to_crs(miami_utm).geometry):
+        lauderdaleOut.append((f"{prefix}{i}", x, miami_utm))
+
     # Export the river names, geometries, and utm zones used by each
     output = [
         ("Mississippi", miss_geom, miss_utm), 
@@ -108,7 +128,12 @@ def get_river_data() -> list[tuple[str, shp.LineString, pp.CRS]]:
         ("Neches", neches_geom, neches_utm),
         ("Houston Ship Channel", h_ship_geom, h_ship_utm),
         ("Sabine-Neches Ship Channel", sn_ship_geom, sn_utm),
-        ("Jacksonville Port/Channel", jville_port_geom, jville_utm)
+        ("Jacksonville Port/Channel", jville_port_geom, jville_utm),
+        # ("Miami Port", miami_port_geom, miami_utm),   # Probably need to tune dbscan better here
+        ("Miami River", miami_river_geom, miami_utm),
+        # ("Miami Yacht Club", miami_yacht_geom, miami_utm)     # Probably need to tune dbscan better here
     ]
+
+    # output += lauderdaleOut # Makes performance worse for now, ignore
     
     return output
