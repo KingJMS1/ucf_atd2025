@@ -6,4 +6,5 @@ scikit-learn
 atd2025
 pytorch
 pyarrow
+tensorboard
 pytorch-forecasting
