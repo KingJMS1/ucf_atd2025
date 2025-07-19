@@ -5,3 +5,5 @@ geopandas
 scikit-learn
 atd2025
 pytorch
+pyarrow
+pytorch-forecasting
