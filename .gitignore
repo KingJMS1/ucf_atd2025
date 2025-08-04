@@ -6,11 +6,16 @@ __pycache__/
 # C extensions
 *.so
 
-# Geospatial files
+# Geospatial/Bulk files
 *.geojson
 *.kml
 *.csv
 *.parquet
+*.sqlite3
+*.zip
+*.npy
+*_out.txt
+*.lgbm
 
 # Scripts
 *_script.py

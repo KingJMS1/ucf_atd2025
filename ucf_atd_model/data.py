@@ -3,7 +3,7 @@ from typing import *
 
 def data_loc(filename: str) -> str:
     path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__), "datasets", filename))
-    if os.path.isfile(path):
+    if os.path.isfile(path) or os.path.isdir(path):
         return path
     else:
         return filename

@@ -8,3 +8,4 @@ pytorch
 pyarrow
 tensorboard
 pytorch-forecasting
+lightgbm
