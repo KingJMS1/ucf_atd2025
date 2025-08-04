@@ -8,6 +8,10 @@ def data_loc(filename: str) -> str:
     else:
         return filename
 
+def new_data_loc(filename: str) -> str:
+    path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__), "datasets", filename))
+    return path
+
 class ResultCache:
     def __init__(self, caller: str):
         self.caller = caller

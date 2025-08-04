@@ -7,5 +7,6 @@ atd2025
 pytorch
 pyarrow
 tensorboard
+tqdm
 pytorch-forecasting
 lightgbm
