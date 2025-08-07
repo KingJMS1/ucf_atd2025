@@ -3,12 +3,19 @@ import numpy as np
 from sklearn.neighbors import BallTree
 from datetime import *
 
+import pyproj as pp
 import pyarrow.parquet as pq
 import pandas as pd
 from ..data import data_loc
 from sys import argv
 import traceback
 import time
+
+wgs84 = pp.CRS.from_epsg(4326)
+utm = pp.CRS.from_epsg(32616)
+to_utm = pp.Transformer.from_crs(wgs84, utm)
+
+columns = ["distance_m", "implied_speed_knots", "delta_speed", "delta_course", "bearing_diff", "kinematic_error", "delta_time", "y1", "y2", "x1", "x2", "t1", "t2", "dx1", "dx2", "dy1", "dy2"]
 
 def get_data(i):
     # Read in historical data
@@ -18,7 +25,6 @@ def get_data(i):
         data["time"] = data["time"].apply(lambda x: datetime.combine(datetime.fromtimestamp(0).date(), x))
     
     return data
-
 
 # --- Helper Functions  ---
 def haversine_distance_m(lat1, lon1, lat2, lon2):
@@ -63,10 +69,30 @@ def calculate_link_features(p1: pd.DataFrame, p2: pd.DataFrame):
     features['bearing_diff'] = 180 - abs(180 - abs(bearing - p1['course']))
     proj_lat, proj_lon = project_forward(p1['lat'], p1['lon'], p1['speed'], p1['course'], features['delta_time'])
     features['kinematic_error'] = haversine_distance_m(p2['lat'], p2['lon'], proj_lat, proj_lon)
+    
+    x1, y1 = to_utm.transform(p1["lat"].to_numpy(), p1["lon"].to_numpy())
+    x2, y2 = to_utm.transform(p2["lat"].to_numpy(), p2["lon"].to_numpy())
 
-    return features[["distance_m", "implied_speed_knots", "delta_speed", "delta_course", "bearing_diff", "kinematic_error", "delta_time"]][filter]
+    dx1 = 0.000514444 *  p1["speed"] * np.sin(p1["course"] * (np.pi) / 180)
+    dy1 = 0.000514444 * p1["speed"] * np.cos(p1["course"] * (np.pi) / 180)
+    dx2 = 0.000514444 * p2["speed"] * np.sin(p2["course"] * (np.pi) / 180)
+    dy2 = 0.000514444 * p2["speed"] * np.cos(p2["course"] * (np.pi) / 180)
 
-def create_link_feature_dataset(df, n_distractors=5):
+
+    features["y1"] = y1 / 1000
+    features["y2"] = y2 / 1000
+    features["x1"] = x1 / 1000
+    features["x2"] = x2 / 1000
+    features["t1"] = p1["time"]
+    features["t2"] = p2["time"]
+    features["dx1"] = dx1
+    features["dy1"] = dy1
+    features["dx2"] = dx2
+    features["dy2"] = dy2
+
+    return features[columns][filter]
+
+def create_link_feature_dataset(df, n_distractors=7):
     """Processes historical data to create a training set for link prediction."""
     all_features = []
     df = df.sort_values(['track_id', 'time'])
@@ -87,7 +113,7 @@ def create_link_feature_dataset(df, n_distractors=5):
             features["label"] = 1
             all_features.append(features)
 
-        # Negative examples
+        # Negative example
         max_dist_m = (p2['time'] - p1['time']).dt.total_seconds() * 30 * 0.5144 # Max 30 knots travel
         candidate_idxs = tree.query_radius(np.deg2rad([p1['lat'], p1['lon']]).T, r=max_dist_m/6371000)
         shuffled = np.array([np.pad(np.random.permutation(x)[:n_distractors], (0, n_distractors - min(n_distractors, len(x)))) for x in candidate_idxs])
