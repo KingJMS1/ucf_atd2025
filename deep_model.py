@@ -127,11 +127,14 @@ for epoch in range(num_epochs):
         del loss
         del X_train
         del y_train
+
+        gc.collect()
+        pt.cuda.empty_cache()
+
     
     print(f"    Train Loss: {epoch_train_loss:.3f}")
     endTime = time()
     print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
 
     pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
-    pt.cuda.empty_cache()
-    gc.collect()
+    
