@@ -11,11 +11,11 @@ from sys import argv
 import traceback
 import time
 
-wgs84 = pp.CRS.from_epsg(4326)
-utm = pp.CRS.from_epsg(32616)
-to_utm = pp.Transformer.from_crs(wgs84, utm)
+# wgs84 = pp.CRS.from_epsg(4326)
+# utm = pp.CRS.from_epsg(32616)
+# to_utm = pp.Transformer.from_crs(wgs84, utm)
 
-columns = ["distance_m", "implied_speed_knots", "delta_speed", "delta_course", "bearing_diff", "kinematic_error", "delta_time", "y1", "y2", "x1", "x2", "t1", "t2", "dx1", "dx2", "dy1", "dy2"]
+columns = ["distance_m", "implied_speed_knots", "delta_speed", "delta_course", "bearing_diff", "kinematic_error", "delta_time", "y1", "y2", "x1", "x2", "t1", "t2", "speed1", "speed2", "course1", "course2"] # "y1", "y2", "x1", "x2", "t1", "t2", "dx1", "dx2", "dy1", "dy2"
 
 def get_data(i):
     # Read in historical data
@@ -70,25 +70,25 @@ def calculate_link_features(p1: pd.DataFrame, p2: pd.DataFrame):
     proj_lat, proj_lon = project_forward(p1['lat'], p1['lon'], p1['speed'], p1['course'], features['delta_time'])
     features['kinematic_error'] = haversine_distance_m(p2['lat'], p2['lon'], proj_lat, proj_lon)
     
-    x1, y1 = to_utm.transform(p1["lat"].to_numpy(), p1["lon"].to_numpy())
-    x2, y2 = to_utm.transform(p2["lat"].to_numpy(), p2["lon"].to_numpy())
+    # x1, y1 = to_utm.transform(p1["lat"].to_numpy(), p1["lon"].to_numpy())
+    # x2, y2 = to_utm.transform(p2["lat"].to_numpy(), p2["lon"].to_numpy())
 
-    dx1 = 0.000514444 *  p1["speed"] * np.sin(p1["course"] * (np.pi) / 180)
-    dy1 = 0.000514444 * p1["speed"] * np.cos(p1["course"] * (np.pi) / 180)
-    dx2 = 0.000514444 * p2["speed"] * np.sin(p2["course"] * (np.pi) / 180)
-    dy2 = 0.000514444 * p2["speed"] * np.cos(p2["course"] * (np.pi) / 180)
+    # dx1 = 0.000514444 *  p1["speed"] * np.sin(p1["course"] * (np.pi) / 180)
+    # dy1 = 0.000514444 * p1["speed"] * np.cos(p1["course"] * (np.pi) / 180)
+    # dx2 = 0.000514444 * p2["speed"] * np.sin(p2["course"] * (np.pi) / 180)
+    # dy2 = 0.000514444 * p2["speed"] * np.cos(p2["course"] * (np.pi) / 180)
 
 
-    features["y1"] = y1 / 1000
-    features["y2"] = y2 / 1000
-    features["x1"] = x1 / 1000
-    features["x2"] = x2 / 1000
+    features["y1"] = p1["lat"]
+    features["y2"] = p2["lat"]
+    features["x1"] = p1["lon"]
+    features["x2"] = p2["lon"]
     features["t1"] = p1["time"]
     features["t2"] = p2["time"]
-    features["dx1"] = dx1
-    features["dy1"] = dy1
-    features["dx2"] = dx2
-    features["dy2"] = dy2
+    features["speed1"] = p1["speed"]
+    features["speed2"] = p2["speed"]
+    features["course1"] = p1["course"]
+    features["course2"] = p2["course"]
 
     return features[columns][filter]
 
