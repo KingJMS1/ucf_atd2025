@@ -22,7 +22,7 @@ inp_dim = 21
 h_dim = 500
 out_dim = 1
 
-device = pt.device("cpu")
+device = pt.device("cuda:0")
 
 model = nn.Sequential(
     nn.Linear(inp_dim, h_dim),
