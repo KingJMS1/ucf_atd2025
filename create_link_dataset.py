@@ -10,7 +10,7 @@ with pq.ParquetFile(data_loc("historical.parquet")) as fulldata:
     rowgroups = fulldata.num_row_groups
 
 
-with Pool(processes=100) as pool:
+with Pool(processes=60) as pool:
     results = pool.map(run, range(rowgroups))
     for i, result in enumerate(results):
         if result != "":
