@@ -119,6 +119,8 @@ for epoch in range(num_epochs):
             optimizer.step()
         
         epoch_train_loss += loss.item()
+        del X_train
+        del y_train
     
     print(f"    Train Loss: {epoch_train_loss:.3f}")
     endTime = time()
