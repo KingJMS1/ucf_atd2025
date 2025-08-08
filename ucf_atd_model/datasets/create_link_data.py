@@ -59,7 +59,7 @@ def calculate_link_features(p1: pd.DataFrame, p2: pd.DataFrame):
     else:
         features = pd.DataFrame(p1)
         features["delta_time"] = (p2["time"].to_numpy() - p1["time"]).astype("timedelta64[s]").astype("int")
-    filter = (0 < features["delta_time"]) & (features["delta_time"] < 3600 * 4)
+    filter = (0 < features["delta_time"])
 
     features['distance_m'] = haversine_distance_m(p1['lat'], p1['lon'], p2['lat'], p2['lon'])
     features['implied_speed_knots'] = (features['distance_m'] / features['delta_time']) * 1.94384

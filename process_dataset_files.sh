@@ -2,7 +2,7 @@
 
 #SBATCH --cpus-per-task=40
 #SBATCH --mem=64G
-#SBATCH --time=8:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=process_dataset_files_%j.txt
 
 # Activate python environment
