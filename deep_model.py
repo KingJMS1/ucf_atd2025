@@ -47,7 +47,7 @@ validation: pd.DataFrame = None
 with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
     n_rowgroups = fulldata.num_row_groups
     validation = fulldata.read_row_group(0).to_pandas()
-    table = fulldata.read_row_groups(random.sample(list(range(1, fulldata.num_row_groups)), 1000)).to_pandas(self_destruct = True)
+    table = fulldata.read_row_groups(random.sample(list(range(1, fulldata.num_row_groups)), 1200)).to_pandas(self_destruct = True)
 
 labels = table.keys()
 train_X = pt.from_numpy(table.drop(["label"], axis=1).values)
