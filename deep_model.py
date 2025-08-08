@@ -46,7 +46,7 @@ def data_generator():
     global xmean
     global num_loops
 
-    batch_size = 1
+    batch_size = 4
     table: pd.DataFrame = None
     with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
         n_rowgroups = fulldata.num_row_groups
@@ -85,6 +85,7 @@ num_epochs = 100
 optimizer = pt.optim.Adam(model.parameters(), lr=0.001)
 lossfn = nn.BCELoss()
 
+i = 0
 for epoch in range(num_epochs):
     print(f"Epoch {epoch} / {num_epochs}")
     startTime = time()
@@ -104,7 +105,9 @@ for epoch in range(num_epochs):
     # Train the model
     model.train()
     for X_train, y_train in tqdm.tqdm(dataloader, total=num_loops):
-        print(f"Train set is {X_train.nelement() * X_train.element_size() / 1000 / 1000 / 1000} GB")
+        if i % 100 == 0:
+            print(f"Train set is {X_train.nelement() * X_train.element_size() / 1000 / 1000 / 1000} GB")
+        i += 1
         X_train = X_train.to(device)
         y_train = y_train.to(device)
         optimizer.zero_grad()
