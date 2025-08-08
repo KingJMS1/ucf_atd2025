@@ -46,7 +46,7 @@ def data_generator():
     global xmean
     global num_loops
 
-    batch_size = 1
+    batch_size = 8192
     table: pd.DataFrame = None
     with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
         n_rowgroups = fulldata.num_row_groups
@@ -66,13 +66,14 @@ def data_generator():
 
         yield test_X, test_y
 
-        for idxs in it.batched(all_data, batch_size):
-            table = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True)
+        for idx in all_data:
+            table = fulldata.read_row_group(idx).to_pandas(self_destruct = True)
             
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
             train_X = (train_X - xmean) / xstd
             train_y = pt.from_numpy(table["label"].to_numpy()).float()
 
+            
             yield train_X, train_y
 
 
@@ -97,6 +98,8 @@ for epoch in range(num_epochs):
         output = model(X_test)
         loss = lossfn(output.flatten(), y_test)
         print(f"    Test Loss: {loss.item():.3f}")
+        del output
+        del loss
     
     del X_test
     del y_test
@@ -118,8 +121,10 @@ for epoch in range(num_epochs):
             loss = lossfn(output.flatten(), y_train)
             loss.backward()
             optimizer.step()
+            del output
         
         epoch_train_loss += loss.item()
+        del loss
         del X_train
         del y_train
     
