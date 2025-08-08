@@ -48,7 +48,7 @@ def data_generator():
 
     batch_size = 8192
     table: pd.DataFrame = None
-    with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
+    with pq.ParquetFile(data_loc("link_data_large.parquet")) as fulldata:
         n_rowgroups = fulldata.num_row_groups
         all_data = set(range(n_rowgroups))
         if validation is None:
