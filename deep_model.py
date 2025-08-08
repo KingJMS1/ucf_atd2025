@@ -72,8 +72,6 @@ def data_generator():
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
             train_X = (train_X - xmean) / xstd
             train_y = pt.from_numpy(table["label"].to_numpy()).float()
-            
-            gc.collect()
 
             yield train_X, train_y
 
@@ -99,6 +97,9 @@ for epoch in range(num_epochs):
         output = model(X_test)
         loss = lossfn(output.flatten(), y_test)
         print(f"    Test Loss: {loss.item():.3f}")
+    
+    del X_test
+    del y_test
 
     # Train the model
     model.train()
@@ -127,3 +128,5 @@ for epoch in range(num_epochs):
     print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
 
     pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
+    pt.cuda.empty_cache()
+    gc.collect()
