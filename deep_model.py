@@ -33,10 +33,10 @@ model = nn.Sequential(
     nn.Dropout(0.1),
     nn.Linear(h_dim // 10, 1),
     nn.Sigmoid()
-).double().to(device)
+).to(device)
 
-xmean = pt.load("xmean.pt")
-xstd = pt.load("xstd.pt")
+xmean = pt.load("xmean.pt").float()
+xstd = pt.load("xstd.pt").float()
 
 num_loops = None
 validation = None
@@ -56,10 +56,10 @@ def data_generator():
         all_data = all_data.difference(validation)
         testData = fulldata.read_row_groups(validation).to_pandas()
         
-        test_X = pt.from_numpy(testData.drop(["label"], axis=1).values)
+        test_X = pt.from_numpy(testData.drop(["label"], axis=1).values).float()
         test_X = (test_X - xmean) / xstd
         test_X = test_X.to(device)
-        test_y = pt.from_numpy(testData["label"].to_numpy()).double().to(device)
+        test_y = pt.from_numpy(testData["label"].to_numpy()).float().to(device)
         
         all_data = sorted(list(all_data))
         num_loops = len(list(it.batched(all_data, batch_size)))
@@ -69,11 +69,11 @@ def data_generator():
         for idxs in it.batched(all_data, batch_size):
             table = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True)
             
-            train_X = pt.from_numpy(table.drop(["label"], axis=1).values)
+            train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
             xmean = pt.mean(train_X, 0)
             xstd = pt.std(train_X, 0)
             train_X = (train_X - xmean) / xstd
-            train_y = pt.from_numpy(table["label"].to_numpy()).double()
+            train_y = pt.from_numpy(table["label"].to_numpy()).float()
             
             gc.collect()
 
@@ -104,6 +104,7 @@ for epoch in range(num_epochs):
     # Train the model
     model.train()
     for X_train, y_train in tqdm.tqdm(dataloader, total=num_loops):
+        print(f"Train set is {X_train.nelement() * X_train.element_size() / 1000 / 1000 / 1000} GB")
         X_train = X_train.to(device)
         y_train = y_train.to(device)
         optimizer.zero_grad()
