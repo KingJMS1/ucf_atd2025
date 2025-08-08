@@ -10,4 +10,4 @@ module load anaconda
 conda activate pyproj
 
 # Run a Python script
-python python-script.py
+python create_link_dataset.py
