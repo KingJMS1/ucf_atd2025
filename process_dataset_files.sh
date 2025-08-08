@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=40
 #SBATCH --mem=64G
-#SBATCH --time=4:00:00
+#SBATCH --time=8:00:00
 #SBATCH --output=process_dataset_files_%j.txt
 
 # Activate python environment
