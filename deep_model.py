@@ -13,6 +13,7 @@ import gc
 import pyarrow as pa
 from time import time
 import pyarrow.parquet as pq
+import random
 
 from ucf_atd_model.data import data_loc, ResultCache
 
@@ -46,7 +47,7 @@ validation: pd.DataFrame = None
 with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
     n_rowgroups = fulldata.num_row_groups
     validation = fulldata.read_row_group(0).to_pandas()
-    table = fulldata.read_row_groups(list(range(1, fulldata.num_row_groups))).to_pandas(self_destruct = True)
+    table = fulldata.read_row_groups(random.sample(list(range(1, fulldata.num_row_groups)), 1000)).to_pandas(self_destruct = True)
 
 labels = table.keys()
 train_X = pt.from_numpy(table.drop(["label"], axis=1).values)
@@ -59,6 +60,9 @@ test_X = pt.from_numpy(validation.drop(["label"], axis=1).values)
 test_X = (test_X - xmean) / xstd
 test_X = test_X.to(device)
 test_y = pt.from_numpy(validation["label"].to_numpy()).double().to(device)
+
+pt.save(xmean, "xmean.pt")
+pt.save(xstd, "xstd.pt")
 
 train_dataset = pt.utils.data.TensorDataset(train_X, train_y)
 
