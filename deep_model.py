@@ -46,7 +46,7 @@ def data_generator():
     global xmean
     global num_loops
 
-    batch_size = 4
+    batch_size = 1
     table: pd.DataFrame = None
     with pq.ParquetFile(data_loc("link_data_small.parquet")) as fulldata:
         n_rowgroups = fulldata.num_row_groups
@@ -70,8 +70,6 @@ def data_generator():
             table = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True)
             
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
-            xmean = pt.mean(train_X, 0)
-            xstd = pt.std(train_X, 0)
             train_X = (train_X - xmean) / xstd
             train_y = pt.from_numpy(table["label"].to_numpy()).float()
             
