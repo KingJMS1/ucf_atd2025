@@ -1,9 +1,5 @@
 import pandas as pd
 from time import time
-import itertools as it
-import gc
-import tqdm
-from sys import argv
 import pyarrow.parquet as pq
 import numpy as np
 from ucf_atd_model.data import data_loc, new_data_loc
@@ -66,9 +62,8 @@ def paddata(link_features):
     else:
         return link_features
 
-def run_v31_ml_enhanced_tracker(df):
+def create_data(df):
     """Implements the final ML-Enhanced Tracking algorithm."""
-    print("\n--- Starting V31: The ML-Enhanced Tracker ---")
     df = df.sort_values('time').reset_index(drop=True)
     df['track_id'] = -1
 
@@ -88,7 +83,7 @@ def run_v31_ml_enhanced_tracker(df):
     ydata = []
     perms = 1
 
-    for i in tqdm.tqdm(range(len(df))):
+    for i in range(len(df)):
         p_current = df.iloc[i]
 
         if next_track_id == 0:
@@ -176,17 +171,20 @@ def get_data(i):
         data: pd.DataFrame = rowgroup.to_pandas()
         data["time"] = data["time"].apply(lambda x: datetime.combine(datetime.fromtimestamp(0).date(), x))
     
+    data["track_id_true"] = data["track_id"]
     return data
 
 def run(i):
     print(f"Processing dataset {i}", flush=True)
     start = time.time()
     try:
-        oracle, xdata, ydata = run_v31_ml_enhanced_tracker(get_data(i))
+        oracle, xdata, ydata = create_data(get_data(i))
         data_path = data_loc("class20")
+        xdata = pd.DataFrame(np.array(xdata), columns=sum([getNormFeatures(i) for i in range(20)], start=[]) + currpt_features)
         xdata.to_csv(f"{data_path}/xdata_{i}.csv")
-        np.save(f"{data_path}/ydata_{i}.npy", ydata)
+        np.save(f"{data_path}/ydata_{i}.npy", np.array(ydata))
     except Exception:
+        traceback.print_exc()
         return traceback.format_exc()
     end = time.time()
     print(f"Finished dataset {i}: Took {end - start:.2f} seconds")
