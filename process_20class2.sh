@@ -10,4 +10,4 @@ module load anaconda
 conda activate pyproj
 
 # Run a Python script
-python create_20class_data.py 2
+python create_20class_dataset.py 2
