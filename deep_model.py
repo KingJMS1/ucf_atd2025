@@ -7,6 +7,7 @@ import random
 import itertools as it
 import gc
 import tqdm
+import numpy as np
 
 from ucf_atd_model.data import data_loc, ResultCache
 
@@ -66,9 +67,9 @@ def data_generator():
 
         yield test_X, test_y
 
-        for idx in range(5,10):
-            table = fulldata.read_row_group(idx).to_pandas(self_destruct = True)
-            
+        for idx in range(2140, 2700):
+            table = fulldata.read_row_group(idx).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
+
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
             train_X = (train_X - xmean) / xstd
             train_y = pt.from_numpy(table["label"].to_numpy()).float()
@@ -82,7 +83,6 @@ num_epochs = 100
 optimizer = pt.optim.Adam(model.parameters(), lr=0.001)
 lossfn = nn.BCELoss()
 
-i = 0
 for epoch in range(num_epochs):
     print(f"Epoch {epoch} / {num_epochs}")
     startTime = time()
@@ -107,9 +107,6 @@ for epoch in range(num_epochs):
     # Train the model
     model.train()
     for X_train, y_train in tqdm.tqdm(dataloader, total=num_loops):
-        if i % 100 == 0:
-            print(f"Train set is {X_train.nelement() * X_train.element_size() / 1000 / 1000 / 1000} GB")
-        i += 1
         X_train = X_train.to(device)
         y_train = y_train.to(device)
         optimizer.zero_grad()
@@ -122,7 +119,7 @@ for epoch in range(num_epochs):
             loss.backward()
             optimizer.step()
             del output
-        
+
         epoch_train_loss += loss.item()
         del loss
         del X_train
