@@ -20,7 +20,7 @@ if __name__ == "__main__":
     batches = list(it.batched(range(rowgroups), (rowgroups // 3) + 1))
     mybatch = batches[batch_num]
 
-    with Pool(processes=1) as pool:
+    with Pool(processes=32) as pool:
         results = pool.map(run, mybatch)
         for i, result in enumerate(results):
             if result != "":
