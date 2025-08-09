@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --cpus-per-task=16
-#SBATCH --time=6:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=256G
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=h100
