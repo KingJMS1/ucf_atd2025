@@ -62,11 +62,11 @@ def data_generator():
         test_y = pt.from_numpy(testData["label"].to_numpy()).float().to(device)
         
         all_data = sorted(list(all_data))
-        num_loops = len(list(it.batched(all_data, batch_size)))
+        num_loops = len(all_data)
 
         yield test_X, test_y
 
-        for idx in all_data:
+        for idx in range(5,10):
             table = fulldata.read_row_group(idx).to_pandas(self_destruct = True)
             
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
