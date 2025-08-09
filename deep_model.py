@@ -67,7 +67,7 @@ def data_generator():
 
         yield test_X, test_y
 
-        for idx in range(2140, 2700):
+        for idx in all_data:
             table = fulldata.read_row_group(idx).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
 
             train_X = pt.from_numpy(table.drop(["label"], axis=1).values).float()
