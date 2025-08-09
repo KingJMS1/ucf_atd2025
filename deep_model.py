@@ -78,7 +78,7 @@ def data_generator():
             yield train_X, train_y
 
 
-num_epochs = 100
+num_epochs = 500
 
 optimizer = pt.optim.Adam(model.parameters(), lr=0.001)
 lossfn = nn.BCELoss()
