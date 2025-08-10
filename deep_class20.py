@@ -121,7 +121,7 @@ def rebatch(x, y, n):
     
 
 num_epochs = 1000
-num_batches = 2
+num_batches = 1
 
 # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
