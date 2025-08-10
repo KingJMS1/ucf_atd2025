@@ -94,7 +94,7 @@ with pq.ParquetFile(validation_file) as fulldata:
 
     X_test = (X_test - xmean) / xstd
 
-big_batch_size = 1
+big_batch_size = 5
 
 # Figure out how many rowgroups there are overall
 num_loops = 0
@@ -150,7 +150,7 @@ def rebatch(x, y, n):
     
 
 num_epochs = 1000
-num_batches = 4
+num_batches = 1
 
 # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
