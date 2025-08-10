@@ -54,7 +54,7 @@ validation = [0, 1]
 
 # Setup the model
 inp_dim = 280
-h_dim = 2000
+h_dim = 1000
 out_dim = 21
 
 device = pt.device("cuda:0")
@@ -68,9 +68,9 @@ model = nn.Sequential(
     nn.Dropout(0.3),
     nn.Linear(h_dim, h_dim // 2),
     nn.ReLU(),
-    nn.Dropout(0.3),
-    nn.Linear(h_dim // 2, h_dim // 2),
-    nn.ReLU(),
+    # nn.Dropout(0.3),
+    # nn.Linear(h_dim // 2, h_dim // 2),
+    # nn.ReLU(),
     nn.Dropout(0.2),
     nn.Linear(h_dim // 2, out_dim),
 ).to(device)
@@ -94,7 +94,7 @@ with pq.ParquetFile(validation_file) as fulldata:
 
     X_test = (X_test - xmean) / xstd
 
-big_batch_size = 2
+big_batch_size = 1
 
 # Figure out how many rowgroups there are overall
 num_loops = 0
