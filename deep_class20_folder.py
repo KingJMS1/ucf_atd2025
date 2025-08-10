@@ -54,7 +54,7 @@ validation = [0, 1]
 
 # Setup the model
 inp_dim = 280
-h_dim = 8000
+h_dim = 2000
 out_dim = 21
 
 device = pt.device("cuda:0")
