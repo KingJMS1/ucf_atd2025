@@ -2,6 +2,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from ucf_atd_model.data import data_loc, new_data_loc
 import tqdm
+import os
+import gc
 
 link_features = [
     "distance_m",
@@ -40,13 +42,17 @@ schema = pa.schema([pa.field(x, pa.float32()) for x in full_names])
 
 pwriter = pq.ParquetWriter(new_data_loc(f"class20_final.parquet"), schema=schema)
 
-files = [data_loc("class20.parquet"), data_loc("class20_0.parquet"), data_loc("class20_1.parquet")]
+files = [data_loc("c20_data") + "/" + x for x in os.listdir(data_loc("c20_data"))]
 
 
-for filename in files:
+for j, filename in enumerate(files):
+    gc.collect()
     with pq.ParquetFile(filename) as data:
         rowgroups = data.num_row_groups
+        print(f"Processing file {j} / {len(files)}")
         for i in tqdm.tqdm(range(rowgroups)):
             table = data.read_row_group(i)
             for batch in table.to_batches():
                 pwriter.write_batch(batch)
+
+pwriter.close()
