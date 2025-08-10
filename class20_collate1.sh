@@ -10,4 +10,4 @@ module load anaconda
 conda activate pyproj
 
 # Run a Python script
-python collate_20class_dataset.py
+python collate_20class_dataset.py 1

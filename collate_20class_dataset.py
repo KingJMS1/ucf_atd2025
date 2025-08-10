@@ -7,6 +7,7 @@ import tqdm
 import os
 import gc
 from time import sleep
+from sys import argv
 
 link_features = [
     "distance_m",
@@ -43,10 +44,18 @@ full_names = colnames + ynames
 
 schema = pa.schema([pa.field(x, pa.float32()) for x in full_names])
 
-pwriter = pq.ParquetWriter(new_data_loc("class20.parquet"), schema=schema)
+which = 1
+
+if len(argv) > 1:
+    if int(argv[1]) == 0:
+        which = 0
+    else:
+        which = 1
+
+pwriter = pq.ParquetWriter(new_data_loc(f"class20_{which}.parquet"), schema=schema)
 
 while True:
-    sleep(500)
+    sleep(30)
     
     folder = data_loc("class20")
     filesToCompress = None
@@ -62,6 +71,11 @@ while True:
     ynums = [int(x.split("_")[1].removesuffix(".npy")) for x in yfiles]
 
     nums_to_process = [x for x in ynums if x in xnums]
+
+    if which == 0:
+        nums_to_process = [x for x in nums_to_process if x < 1100]
+    else:
+        nums_to_process = [x for x in nums_to_process if x >= 1100]
 
     # Wait for any file writes to finish
     sleep(60)
