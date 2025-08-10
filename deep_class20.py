@@ -46,7 +46,7 @@ ynames = [f"y_{i}" for i in range(21)]
 full_names = colnames + ynames
 
 inp_dim = 280
-h_dim = 6000
+h_dim = 2000
 out_dim = 21
 
 device = pt.device("cuda:0")
