@@ -156,7 +156,7 @@ def run(world_size, rank):
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
-    print(f"Ready on {rank}")
+    print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
     for epoch in range(start_epoch, num_epochs):
@@ -243,5 +243,5 @@ def run(world_size, rank):
 if __name__ == "__main__":
     world_size = int(os.environ.get("SLURM_NTASKS"))
     rank = int(os.environ.get("SLURM_PROCID"))
-    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
+    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank, device_id=0)
     run(world_size, rank)
