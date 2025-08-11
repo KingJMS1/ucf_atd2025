@@ -19,121 +19,113 @@ import torch.distributed as dist
 from ucf_atd_model.c20_consts import *
 
 
+badnames = [x for x in full_names if x.endswith("_16")]
+ynames = [x for x in ynames if not x.endswith("_16")]
 
-def run(world_size, rank):
-    # Setup the distributed trainer
-    print(f"INIT {rank}")
-    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
-    print(f"INIT DONE {rank}")
-    dist.barrier()
-
-    if rank == 0:
-        print("ENTERING SETUP")
-    badnames = [x for x in full_names if x.endswith("_16")]
-    ynames = [x for x in ynames if not x.endswith("_16")]
-
-    data_files = [os.path.join(data_loc("c20_data"), x) for x in os.listdir(data_loc("c20_data"))]
-    validation_file = data_files[0]
-    validation = [0, 1, 2, 3]
+data_files = [os.path.join(data_loc("c20_data"), x) for x in os.listdir(data_loc("c20_data"))]
+validation_file = data_files[0]
+validation = [0, 1, 2, 3]
 
 
-    # Setup the model
-    inp_dim = len(colnames) - len(badnames) + 1
-    h_dim = 3000
-    out_dim = n_norm_classes + 1 - 1
+# Setup the model
+inp_dim = len(colnames) - len(badnames) + 1
+h_dim = 3000
+out_dim = n_norm_classes + 1 - 1
 
-    device = pt.device("cuda:0")
+device = pt.device("cuda:0")
 
-    model = nn.Sequential(
-        nn.Linear(inp_dim, h_dim),
-        nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(h_dim, h_dim),
-        nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(h_dim, h_dim // 2),
-        nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(h_dim // 2, h_dim // 2),
-        nn.ReLU(),
-        nn.Dropout(0.2),
-        nn.Linear(h_dim // 2, out_dim),
-    ).to(device)
+model = nn.Sequential(
+    nn.Linear(inp_dim, h_dim),
+    nn.ReLU(),
+    nn.Dropout(0.3),
+    nn.Linear(h_dim, h_dim),
+    nn.ReLU(),
+    nn.Dropout(0.3),
+    nn.Linear(h_dim, h_dim // 2),
+    nn.ReLU(),
+    nn.Dropout(0.3),
+    nn.Linear(h_dim // 2, h_dim // 2),
+    nn.ReLU(),
+    nn.Dropout(0.2),
+    nn.Linear(h_dim // 2, out_dim),
+).to(device)
 
 
-    # Read the validation data in
-    X_test = None
-    y_test = None
-    xmean = None
-    xstd = None
+# Read the validation data in
+X_test = None
+y_test = None
+xmean = None
+xstd = None
 
-    with pq.ParquetFile(validation_file) as fulldata:
-        testData = fulldata.read_row_groups(validation).to_pandas()
-        X_test = pt.from_numpy(testData.drop(ynames + badnames, axis=1).to_numpy()).float()
-        y_test = pt.from_numpy(testData[ynames].to_numpy()).float()
-        
-        xmean = pt.mean(X_test, 0)
-        xstd = pt.std(X_test, 0)
-        pt.save(xmean, "xmean.pt")
-        pt.save(xstd, "xstd.pt")
+with pq.ParquetFile(validation_file) as fulldata:
+    testData = fulldata.read_row_groups(validation).to_pandas()
+    X_test = pt.from_numpy(testData.drop(ynames + badnames, axis=1).to_numpy()).float()
+    y_test = pt.from_numpy(testData[ynames].to_numpy()).float()
+    
+    xmean = pt.mean(X_test, 0)
+    xstd = pt.std(X_test, 0)
+    pt.save(xmean, "xmean.pt")
+    pt.save(xstd, "xstd.pt")
 
-        X_test = (X_test - xmean) / xstd
+    X_test = (X_test - xmean) / xstd
 
-    cpu_batch_size = 4
+cpu_batch_size = 4
 
-    # Figure out how many rowgroups there are overall
-    num_loops = 0
+# Figure out how many rowgroups there are overall
+num_loops = 0
+for data_file in data_files:
+    with pq.ParquetFile(data_file) as fulldata:
+        num_loops += len(list(it.batched(range(fulldata.num_row_groups), cpu_batch_size)))
+num_loops -= len(validation) // cpu_batch_size
+
+# Return data in batches that fit in total memory
+def data_generator():
+    """Return data in batches that fit in memory"""
+    global validation
+    global xstd
+    global xmean
+
     for data_file in data_files:
         with pq.ParquetFile(data_file) as fulldata:
-            num_loops += len(list(it.batched(range(fulldata.num_row_groups), cpu_batch_size)))
-    num_loops -= len(validation) // cpu_batch_size
-
-    # Return data in batches that fit in total memory
-    def data_generator():
-        """Return data in batches that fit in memory"""
-        global validation
-        global xstd
-        global xmean
-
-        for data_file in data_files:
-            with pq.ParquetFile(data_file) as fulldata:
-                n_rowgroups = fulldata.num_row_groups
-                all_data = set(range(n_rowgroups))
-                if data_file == validation_file:
-                    all_data = all_data.difference(validation)
-                
-                all_data = sorted(list(all_data))
-
-                for idxs in it.batched(all_data, cpu_batch_size):
-                    table: pd.DataFrame = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
-
-                    train_X = pt.from_numpy(table.drop(ynames + badnames, axis=1).to_numpy()).float()
-                    train_X = (train_X - xmean) / xstd
-                    train_y = pt.from_numpy(table[ynames].to_numpy()).float()
-
-                    yield train_X, train_y
-
-    # Return batches that fit in GPU memory
-    def rebatch(x: pt.Tensor, y: pt.Tensor, n: int):
-        """
-        Return data in batches that fit in GPU memory
-        
-        Parameters
-        ----------
-            x (pt.tensor): x data
-                
-            y (pt.tensor): y data
+            n_rowgroups = fulldata.num_row_groups
+            all_data = set(range(n_rowgroups))
+            if data_file == validation_file:
+                all_data = all_data.difference(validation)
             
-            n (int): Number of row_groups to read in 1 batch
-        """
-        currPlace = 0
-        batchlen = (x.shape[0] // n) + 1
-        while currPlace < x.shape[0]:
-            nextPlace = currPlace + batchlen
-            yield x[currPlace:nextPlace], y[currPlace:nextPlace]
-            currPlace = nextPlace
-        
+            all_data = sorted(list(all_data))
 
+            for idxs in it.batched(all_data, cpu_batch_size):
+                table: pd.DataFrame = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
+
+                train_X = pt.from_numpy(table.drop(ynames + badnames, axis=1).to_numpy()).float()
+                train_X = (train_X - xmean) / xstd
+                train_y = pt.from_numpy(table[ynames].to_numpy()).float()
+
+                yield train_X, train_y
+
+# Return batches that fit in GPU memory
+def rebatch(x: pt.Tensor, y: pt.Tensor, n: int):
+    """
+    Return data in batches that fit in GPU memory
+    
+    Parameters
+    ----------
+        x (pt.tensor): x data
+            
+        y (pt.tensor): y data
+        
+        n (int): Number of row_groups to read in 1 batch
+    """
+    currPlace = 0
+    batchlen = (x.shape[0] // n) + 1
+    while currPlace < x.shape[0]:
+        nextPlace = currPlace + batchlen
+        yield x[currPlace:nextPlace], y[currPlace:nextPlace]
+        currPlace = nextPlace
+    
+def run(world_size, rank):
+    print(X_test.shape)
+    # Setup the distributed trainer
     num_epochs = 100
     gpu_batch_size = 2
 
@@ -150,9 +142,6 @@ def run(world_size, rank):
     start_epoch = 0
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
-
-    print(f"FINISHED SETUP {rank}")
-    dist.barrier()
 
     for epoch in range(start_epoch, num_epochs):
         if rank == 0:
@@ -235,5 +224,6 @@ def run(world_size, rank):
 if __name__ == "__main__":
     world_size = int(os.environ.get("SLURM_NTASKS"))
     rank = int(os.environ.get("SLURM_PROCID"))
-    print(f"ENTERING {rank}")
+    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
+    print(X_test.shape)
     run(world_size, rank)
