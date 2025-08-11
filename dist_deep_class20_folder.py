@@ -16,7 +16,7 @@ import torch as pt
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 import torch.distributed as dist
-from torch.profiler import profile, record_function, ProfilerActivity, tensorboard_trace_handler
+from torch.profiler import profile, record_function, ProfilerActivity, tensorboard_trace_handler, schedule
 
 from ucf_atd_model.c20_consts import *
 
@@ -160,11 +160,10 @@ def run(world_size, rank):
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
+    tracing_schedule = schedule(wait=1, warmup=0, active=1)
+
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-        # record_shapes=True, # Causes seg fault in export_chrome_trace
-        # with_stack=True, # Causes seg fault with EFA
-        # with_flops=True, # Causes seg fault in export_chrome_trace
         record_shapes=False,
         with_stack=False,
         with_flops=False,
