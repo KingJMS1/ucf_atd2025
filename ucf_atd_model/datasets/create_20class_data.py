@@ -3,39 +3,13 @@ from time import time
 import pyarrow.parquet as pq
 import numpy as np
 from ucf_atd_model.data import data_loc, new_data_loc
+from ..c20_consts import *
 from ucf_atd_model.datasets.create_link_data import calculate_link_features, haversine_distance_m, project_forward
 from datetime import datetime
 import time
 import traceback
 
-link_features = [
-    "distance_m",
-    "implied_speed_knots",
-    "delta_speed",
-    "delta_course",
-    "bearing_diff",
-    "kinematic_error",
-    "delta_time",
-    "y1", 
-    "y2", 
-    "x1",
-    "x2",
-    "t1",
-    "t2",
-    "speed1",
-    "speed2",
-    "course1",
-    "course2",
-    "dx1",
-    "dy1",
-    "dx2",
-    "dy2",
-]
-
-currpt_features = ["dy2", "dx2", "course2", "speed2", "t2", "x2", "y2"]
-normal_features = [x for x in link_features if x not in currpt_features]
-getNormFeatures = lambda i: [x + f"_{i}" for x in normal_features]
-
+# Pad with this when necessary
 const_data = {key: -1.0 for key in link_features}
 
 def subset(lastpts, i):
@@ -55,8 +29,8 @@ def boolfilter(lastpts, bools):
     return {key: lastpts[key][bools] for key in columns}
 
 def paddata(link_features):
-    if link_features.shape[0] < 20:
-        to_add = 20 - link_features.shape[0]
+    if link_features.shape[0] < n_norm_classes:
+        to_add = n_norm_classes - link_features.shape[0]
         extra_rows = pd.DataFrame([const_data] * to_add)
         return pd.concat([link_features, extra_rows], ignore_index=True)
     else:
@@ -81,7 +55,6 @@ def create_data(df):
 
     xdata = []
     ydata = []
-    perms = 1
 
     for i in range(len(df)):
         p_current = df.iloc[i]
@@ -101,7 +74,7 @@ def create_data(df):
         real_dist = haversine_distance_m(active_tracks_df["lat"], active_tracks_df["lon"], p_current["lat"], p_current["lon"])
         
         kinematic_errors = haversine_distance_m(p_current["lat"], p_current["lon"], *project_forward(active_tracks_df['lat'], active_tracks_df['lon'], active_tracks_df['speed'], active_tracks_df['course'], time_diff))
-        error_cutoff = np.sort(kinematic_errors)[:20].max()
+        error_cutoff = np.sort(kinematic_errors)[:n_norm_classes].max()
         kinematic_filter = kinematic_errors < error_cutoff
         
         loc_filter = real_dist < max_dist_m
@@ -116,14 +89,14 @@ def create_data(df):
             maindata = all_data[normal_features].to_numpy()
             otherdata = all_data[currpt_features].iloc[0].to_numpy()
 
-            label = np.zeros(21)
+            label = np.zeros(n_norm_classes + 1)
             id_correct = active_tracks_df["track_id_true"][big_filter] == p_current["track_id_true"]
             any_correct = np.any(id_correct)
             label[:id_correct.shape[0]] = id_correct
             if not any_correct:
-                label[20] = 1
+                label[n_norm_classes] = 1
             
-            toappend = np.zeros(20 * len(normal_features) + len(currpt_features))
+            toappend = np.zeros(n_norm_classes * len(normal_features) + len(currpt_features))
 
             raveled = np.ravel(maindata)
             toappend[:raveled.shape[0]] = raveled
@@ -133,19 +106,19 @@ def create_data(df):
             ydata.append(label)
             
             for perm in range(perms):
-                idxs = np.random.permutation(20)
-                toappend = np.zeros(20 * len(normal_features) + len(currpt_features))
+                idxs = np.random.permutation(n_norm_classes)
+                toappend = np.zeros(n_norm_classes * len(normal_features) + len(currpt_features))
                 
                 raveled = np.ravel(maindata[idxs])
                 toappend[:raveled.shape[0]] = raveled
                 toappend[raveled.shape[0]:] = otherdata
                 
                 xdata.append(toappend)
-                labelp = np.zeros(21)
+                labelp = np.zeros(n_norm_classes + 1)
                 if not any_correct:
-                    labelp[20] = 1
+                    labelp[n_norm_classes] = 1
                 else:
-                    labelp[:20] = label[idxs]
+                    labelp[:n_norm_classes] = label[idxs]
                 ydata.append(labelp)
 
             # Assignment with a confidence threshold
@@ -180,7 +153,7 @@ def run(i):
     try:
         oracle, xdata, ydata = create_data(get_data(i))
         data_path = data_loc("class20")
-        xdata = pd.DataFrame(np.array(xdata), columns=sum([getNormFeatures(i) for i in range(20)], start=[]) + currpt_features)
+        xdata = pd.DataFrame(np.array(xdata), columns=colnames)
         xdata.to_csv(f"{data_path}/xdata_{i}.csv")
         np.save(f"{data_path}/ydata_{i}.npy", np.array(ydata))
     except Exception:

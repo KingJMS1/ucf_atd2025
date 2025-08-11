@@ -28,7 +28,7 @@ if __name__ == "__main__":
     collater = Process(target=run_collater, args=(batch_num, mybatch, cconn))
     collater.start()
 
-    with Pool(processes=32) as pool:
+    with Pool(processes=34) as pool:
         results = pool.map(run, mybatch)
         for i, result in enumerate(results):
             if result != "":

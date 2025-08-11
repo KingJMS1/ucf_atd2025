@@ -33,7 +33,7 @@ currpt_features = ["dy2", "dx2", "course2", "speed2", "t2", "x2", "y2"]
 normal_features = [x for x in link_features if x not in currpt_features]
 getNormFeatures = lambda i: [x + f"_{i}" for x in normal_features]
 
-colnames = sum([getNormFeatures(i) for i in range(20)], start=[])
+colnames = sum([getNormFeatures(i) for i in range(20)], start=[]) + currpt_features
 ynames = [f"y_{i}" for i in range(21)]
 
 full_names = colnames + ynames
