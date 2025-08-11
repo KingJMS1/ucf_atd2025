@@ -16,6 +16,7 @@ import torch as pt
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 import torch.distributed as dist
+from torch.profiler import profile, record_function, ProfilerActivity, tensorboard_trace_handler
 
 from ucf_atd_model.c20_consts import *
 
@@ -159,83 +160,95 @@ def run(world_size, rank):
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
-    for epoch in range(start_epoch, num_epochs):
-        if rank == 0:
-            print(f"Epoch {epoch} / {num_epochs}")
-        startTime = time()
-        
-        epoch_train_loss = 0
-        n_epoch = 0
-
-        dataloader = data_generator()
-
-        # Evaluate model
-        if rank == 0:
-            model.eval()
-            with pt.no_grad():
-                tot_loss = 0
-                n = 0
-                for xb, yb in rebatch(X_test, y_test, gpu_batch_size):
-                    xb = xb.to(device)
-                    yb = yb.to(device)
-                    output = model(xb)
-                    loss = lossfn(output, yb)
-                    
-                    n += xb.shape[0]
-                    tot_loss += loss.item()
-                    
-                    del output
-                    del loss
-                print(f"    Test Loss: {tot_loss / n:.3f}")
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        # record_shapes=True, # Causes seg fault in export_chrome_trace
+        # with_stack=True, # Causes seg fault with EFA
+        # with_flops=True, # Causes seg fault in export_chrome_trace
+        record_shapes=False,
+        with_stack=False,
+        with_flops=False,
+        on_trace_ready=tensorboard_trace_handler(f"tboard", rank, use_gzip=True)
+    ) as prof:
             
-            del xb
-            del yb
-
-            gc.collect()
-            pt.cuda.empty_cache()
-        
-        dist.barrier()
-
-        # Train the model
-        model.train()
-        for X_train_o, y_train_o in tqdm.tqdm(dataloader, total=num_loops, disable=(rank != 0)):
+        for epoch in range(start_epoch, num_epochs):
             if rank == 0:
-                stdout.flush()
-                stderr.flush()
-            for X_train, y_train in rebatch(X_train_o, y_train_o, gpu_batch_size):
-                X_train = X_train.to(device)
-                y_train = y_train.to(device)
-                optimizer.zero_grad()
-                
-                output = None
-                loss = None
-                with pt.set_grad_enabled(True):
-                    output = model(X_train)
-                    loss = lossfn(output, y_train)
-                    loss.backward()
-                    optimizer.step()
-                    del output
+                print(f"Epoch {epoch} / {num_epochs}")
+            startTime = time()
+            
+            epoch_train_loss = 0
+            n_epoch = 0
 
-                if rank == 0:
-                    epoch_train_loss += loss.item()
-                    n_epoch += X_train.shape[0]
-                del loss
-                del X_train
-                del y_train
+            dataloader = data_generator()
+
+            # Evaluate model
+            if rank == 0:
+                model.eval()
+                with pt.no_grad():
+                    tot_loss = 0
+                    n = 0
+                    for xb, yb in rebatch(X_test, y_test, gpu_batch_size):
+                        xb = xb.to(device)
+                        yb = yb.to(device)
+                        output = model(xb)
+                        loss = lossfn(output, yb)
+                        
+                        n += xb.shape[0]
+                        tot_loss += loss.item()
+                        
+                        del output
+                        del loss
+                    print(f"    Test Loss: {tot_loss / n:.3f}")
+                
+                del xb
+                del yb
 
                 gc.collect()
                 pt.cuda.empty_cache()
+            
+            dist.barrier()
 
-        if rank == 0:
-            print(f"    Train Loss (rank 0): {epoch_train_loss / n_epoch:.3f}")
-            endTime = time()
-            print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
+            # Train the model
+            model.train()
+            for X_train_o, y_train_o in tqdm.tqdm(dataloader, total=num_loops, disable=(rank != 0)):
+                if rank == 0:
+                    stdout.flush()
+                    stderr.flush()
+                for X_train, y_train in rebatch(X_train_o, y_train_o, gpu_batch_size):
+                    X_train = X_train.to(device)
+                    y_train = y_train.to(device)
+                    optimizer.zero_grad()
+                    
+                    output = None
+                    loss = None
+                    with pt.set_grad_enabled(True):
+                        output = model(X_train)
+                        loss = lossfn(output, y_train)
+                        loss.backward()
+                        optimizer.step()
+                        del output
 
-        if (epoch % 20 == 0) and (rank == 1):
-            pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
-            pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
-            pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
-        scheduler.step()
+                    if rank == 0:
+                        epoch_train_loss += loss.item()
+                        n_epoch += X_train.shape[0]
+                    del loss
+                    del X_train
+                    del y_train
+
+                    gc.collect()
+                    pt.cuda.empty_cache()
+                    prof.step()
+
+            if rank == 0:
+                print(f"    Train Loss (rank 0): {epoch_train_loss / n_epoch:.3f}")
+                endTime = time()
+                print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
+
+            if (epoch % 20 == 0) and (rank == 1):
+                pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
+                pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
+                pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
+            scheduler.step()
 
     dist.barrier()
     dist.destroy_process_group()
