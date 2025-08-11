@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=deep20
 #SBATCH --output=deep20_%j.txt    
-#SBATCH --nodes=2                          # number of nodes you want to use
-#SBATCH --ntasks=2                        # number of processes to be run
+#SBATCH --nodes=4                          # number of nodes you want to use
+#SBATCH --ntasks=4                        # number of processes to be run
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --gpus-per-node=1                 # every node wants one GPU
