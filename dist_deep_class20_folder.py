@@ -8,6 +8,7 @@ from time import time
 import itertools as it
 import gc
 import os
+from sys import stderr, stdout
 
 from ucf_atd_model.data import data_loc, new_data_loc
 
@@ -155,6 +156,9 @@ def run(world_size, rank):
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
+    print(f"Ready on {rank}")
+    dist.barrier()
+
     for epoch in range(start_epoch, num_epochs):
         if rank == 0:
             print(f"Epoch {epoch} / {num_epochs}")
@@ -195,6 +199,9 @@ def run(world_size, rank):
         # Train the model
         model.train()
         for X_train_o, y_train_o in tqdm.tqdm(dataloader, total=num_loops, disable=(rank != 0)):
+            if rank == 0:
+                stdout.flush()
+                stderr.flush()
             for X_train, y_train in rebatch(X_train_o, y_train_o, gpu_batch_size):
                 X_train = X_train.to(device)
                 y_train = y_train.to(device)
