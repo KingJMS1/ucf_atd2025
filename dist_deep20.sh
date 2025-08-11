@@ -10,4 +10,7 @@
 #SBATCH --gpu-bind=none                   # NCCL can't deal with task-binding...
 #SBATCH --time=14:00:00
 
+module load anaconda
+conda activate pyproj
+
 srun python dist_deep_class20_folder.py
