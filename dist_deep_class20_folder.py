@@ -237,5 +237,4 @@ if __name__ == "__main__":
     world_size = int(os.environ.get("SLURM_NTASKS"))
     rank = int(os.environ.get("SLURM_PROCID"))
     dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
-    print(X_test.shape)
     run(world_size, rank)
