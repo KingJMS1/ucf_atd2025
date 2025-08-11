@@ -100,7 +100,7 @@ big_batch_size = 1
 num_loops = 0
 for data_file in data_files:
     with pq.ParquetFile(data_file) as fulldata:
-        num_loops += len(list(it.batched(range(fulldata.num_row_groups), big_batch_size)))
+        num_loops += len(list(it.batched(range((fulldata.num_row_groups // 3) + 1), big_batch_size)))
 num_loops -= len(validation) // big_batch_size
 
 # Return data in batches that fit in total memory
@@ -113,7 +113,7 @@ def data_generator():
     for data_file in data_files:
         with pq.ParquetFile(data_file) as fulldata:
             n_rowgroups = fulldata.num_row_groups
-            all_data = set(range(n_rowgroups))
+            all_data = set(range((n_rowgroups // 3) + 1))
             if data_file == validation_file:
                 all_data = all_data.difference(validation)
             
