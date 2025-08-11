@@ -71,7 +71,7 @@ with pq.ParquetFile(validation_file) as fulldata:
 
     X_test = (X_test - xmean) / xstd
 
-cpu_batch_size = 4
+cpu_batch_size = 8
 
 # Figure out how many rowgroups there are overall
 num_loops = 0
