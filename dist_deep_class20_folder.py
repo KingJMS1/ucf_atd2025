@@ -98,7 +98,7 @@ with pq.ParquetFile(validation_file) as fulldata:
 
     X_test = (X_test - xmean) / xstd
 
-cpu_batch_size = 4
+cpu_batch_size = 2
 
 # Figure out how many rowgroups there are overall
 num_loops = 0
@@ -157,7 +157,7 @@ def run(world_size, rank):
     dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
 
     num_epochs = 100
-    gpu_batch_size = 4
+    gpu_batch_size = 2
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
