@@ -160,7 +160,7 @@ def run(world_size, rank):
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
-    tracing_schedule = schedule(wait=1, warmup=0, active=1)
+    tracing_schedule = schedule(wait=1, warmup=0, active=15)
 
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -206,15 +206,19 @@ def run(world_size, rank):
                 gc.collect()
                 pt.cuda.empty_cache()
             
+            print(f"Eval, Ready on {rank}")
             dist.barrier()
 
+            print(f"Train start on {rank}")
             # Train the model
             model.train()
             for X_train_o, y_train_o in tqdm.tqdm(dataloader, total=num_loops, disable=(rank != 0)):
+                print(f"Batch read on {rank}")
                 if rank == 0:
                     stdout.flush()
                     stderr.flush()
                 for X_train, y_train in rebatch(X_train_o, y_train_o, gpu_batch_size):
+                    print(f"Rebatched on {rank}")
                     X_train = X_train.to(device)
                     y_train = y_train.to(device)
                     optimizer.zero_grad()
@@ -237,8 +241,8 @@ def run(world_size, rank):
 
                     gc.collect()
                     pt.cuda.empty_cache()
-                    prof.step()
-
+                print(f"Batch done on {rank}")
+                prof.step()
             if rank == 0:
                 print(f"    Train Loss (rank 0): {epoch_train_loss / n_epoch:.3f}")
                 endTime = time()
