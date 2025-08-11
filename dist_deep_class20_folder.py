@@ -163,10 +163,10 @@ def run(world_size, rank):
 
     model = DistributedDataParallel(model, [0])
 
-    optimizer = pt.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = pt.optim.Adam(model.parameters(), lr=0.0007)
     # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
 
-    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
+    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
     # scheduler.load_state_dict(pt.load("checkpoints/sched_25.pt"))
     # scheduler.step()
     start_epoch = 0
@@ -174,7 +174,8 @@ def run(world_size, rank):
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
     for epoch in range(start_epoch, num_epochs):
-        print(f"Epoch {epoch} / {num_epochs}")
+        if rank == 0:
+            print(f"Epoch {epoch} / {num_epochs}")
         startTime = time()
         
         epoch_train_loss = 0
