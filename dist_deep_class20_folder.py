@@ -167,6 +167,7 @@ def run(world_size, rank):
         record_shapes=False,
         with_stack=False,
         with_flops=False,
+        schedule=tracing_schedule,
         on_trace_ready=tensorboard_trace_handler(f"tboard", rank, use_gzip=True)
     ) as prof:
             
