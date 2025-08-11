@@ -124,7 +124,19 @@ def rebatch(x: pt.Tensor, y: pt.Tensor, n: int):
         currPlace = nextPlace
     
 def run(world_size, rank):
-    print(X_test.shape)
+    global model
+    global X_test
+    global y_test
+    global xmean
+    global xstd
+    global device
+    global inp_dim
+    global h_dim
+    global out_dim
+    global data_generator
+    global rebatch
+    global num_loops
+
     # Setup the distributed trainer
     num_epochs = 100
     gpu_batch_size = 2
