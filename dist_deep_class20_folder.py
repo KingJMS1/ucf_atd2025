@@ -22,8 +22,13 @@ from ucf_atd_model.c20_consts import *
 
 def run(world_size, rank):
     # Setup the distributed trainer
+    print(f"INIT {rank}")
     dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank)
+    print(f"INIT DONE {rank}")
+    dist.barrier()
 
+    if rank == 0:
+        print("ENTERING SETUP")
     badnames = [x for x in full_names if x.endswith("_16")]
     ynames = [x for x in ynames if not x.endswith("_16")]
 
@@ -146,6 +151,9 @@ def run(world_size, rank):
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
+    print(f"FINISHED SETUP {rank}")
+    dist.barrier()
+
     for epoch in range(start_epoch, num_epochs):
         if rank == 0:
             print(f"Epoch {epoch} / {num_epochs}")
@@ -227,4 +235,5 @@ def run(world_size, rank):
 if __name__ == "__main__":
     world_size = int(os.environ.get("SLURM_NTASKS"))
     rank = int(os.environ.get("SLURM_PROCID"))
+    print(f"ENTERING {rank}")
     run(world_size, rank)
