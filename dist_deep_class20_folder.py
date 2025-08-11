@@ -16,40 +16,11 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 import torch.distributed as dist
 
+from ucf_atd_model.c20_consts import *
 
-# Important dataset features
-link_features = [
-    "distance_m",
-    "implied_speed_knots",
-    "delta_speed",
-    "delta_course",
-    "bearing_diff",
-    "kinematic_error",
-    "delta_time",
-    "y1", 
-    "y2", 
-    "x1",
-    "x2",
-    "t1",
-    "t2",
-    "speed1",
-    "speed2",
-    "course1",
-    "course2",
-    "dx1",
-    "dy1",
-    "dx2",
-    "dy2",
-]
 
-currpt_features = ["dy2", "dx2", "course2", "speed2", "t2", "x2", "y2"]
-normal_features = [x for x in link_features if x not in currpt_features]
-getNormFeatures = lambda i: [x + f"_{i}" for x in normal_features]
-
-colnames = sum([getNormFeatures(i) for i in range(20)], start=[])
-ynames = [f"y_{i}" for i in range(21)]
-
-full_names = colnames + ynames
+badnames = [x for x in full_names if x.endswith("_16")]
+ynames = [x for x in ynames if not x.endswith("_16")]
 
 data_files = [os.path.join(data_loc("c20_data"), x) for x in os.listdir(data_loc("c20_data"))]
 validation_file = data_files[0]
@@ -57,9 +28,9 @@ validation = [0, 1, 2, 3]
 
 
 # Setup the model
-inp_dim = 280
-h_dim = 2000
-out_dim = 21
+inp_dim = len(colnames) - len(badnames) + 1
+h_dim = 3000
+out_dim = n_norm_classes + 1 - 1
 
 device = pt.device("cuda:0")
 
@@ -88,7 +59,7 @@ xstd = None
 
 with pq.ParquetFile(validation_file) as fulldata:
     testData = fulldata.read_row_groups(validation).to_pandas()
-    X_test = pt.from_numpy(testData.drop(ynames, axis=1).to_numpy()).float()
+    X_test = pt.from_numpy(testData.drop(ynames + badnames, axis=1).to_numpy()).float()
     y_test = pt.from_numpy(testData[ynames].to_numpy()).float()
     
     xmean = pt.mean(X_test, 0)
@@ -98,13 +69,13 @@ with pq.ParquetFile(validation_file) as fulldata:
 
     X_test = (X_test - xmean) / xstd
 
-cpu_batch_size = 2
+cpu_batch_size = 4
 
 # Figure out how many rowgroups there are overall
 num_loops = 0
 for data_file in data_files:
     with pq.ParquetFile(data_file) as fulldata:
-        num_loops += len(list(it.batched(range((fulldata.num_row_groups // 2) + 1), cpu_batch_size)))
+        num_loops += len(list(it.batched(range(fulldata.num_row_groups), cpu_batch_size)))
 num_loops -= len(validation) // cpu_batch_size
 
 # Return data in batches that fit in total memory
@@ -117,7 +88,7 @@ def data_generator():
     for data_file in data_files:
         with pq.ParquetFile(data_file) as fulldata:
             n_rowgroups = fulldata.num_row_groups
-            all_data = set(range((n_rowgroups // 2) + 1))
+            all_data = set(range(n_rowgroups))
             if data_file == validation_file:
                 all_data = all_data.difference(validation)
             
@@ -126,7 +97,7 @@ def data_generator():
             for idxs in it.batched(all_data, cpu_batch_size):
                 table: pd.DataFrame = fulldata.read_row_groups(idxs).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
 
-                train_X = pt.from_numpy(table.drop(ynames, axis=1).to_numpy()).float()
+                train_X = pt.from_numpy(table.drop(ynames + badnames, axis=1).to_numpy()).float()
                 train_X = (train_X - xmean) / xstd
                 train_y = pt.from_numpy(table[ynames].to_numpy()).float()
 
@@ -163,10 +134,10 @@ def run(world_size, rank):
 
     model = DistributedDataParallel(model, [0])
 
-    optimizer = pt.optim.Adam(model.parameters(), lr=0.0007)
+    optimizer = pt.optim.Adam(model.parameters(), lr=0.0008)
     # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
 
-    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
     # scheduler.load_state_dict(pt.load("checkpoints/sched_25.pt"))
     # scheduler.step()
     start_epoch = 0
