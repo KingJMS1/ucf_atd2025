@@ -223,6 +223,6 @@ def run(world_size, rank):
     dist.destroy_process_group()
 
 if __name__ == "__main__":
-    world_size = int(os.environ.get("SLIRM_NTASKS"))
+    world_size = int(os.environ.get("SLURM_NTASKS"))
     rank = int(os.environ.get("SLURM_PROCID"))
     run(world_size, rank)
