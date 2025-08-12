@@ -89,7 +89,7 @@ class C20data(pt.utils.data.IterableDataset):
                         all_data = all_data.difference(self.validation)
                     
                     all_data = sorted(list(all_data))
-                    batches = list(it.batched(all_data, (len(all_data) // num_workers) + 1))
+                    batches = list(it.batched(all_data, (len(all_data) // num_workers) - 1))
                     mybatch = batches[worker_id]
 
                     for idx in mybatch:
