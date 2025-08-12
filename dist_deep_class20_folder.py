@@ -133,7 +133,8 @@ def run(world_size, rank):
                 with pt.no_grad():
                     tot_loss = 0
                     output = model(X_test.to(device))
-                    loss = lossfn(output, y_test.to(device) + y_test_mask_gpu)
+                    output = output + y_test_mask_gpu
+                    loss = lossfn(output, y_test.to(device))
                     
                     tot_loss += loss.item()
                     
@@ -149,15 +150,17 @@ def run(world_size, rank):
 
             # Train the model
             model.train()
-            for X_train, y_train in tqdm.tqdm(dataloader, total=dataset.num_loops, disable=(rank != 0)):
+            for X_train, y_train, y_train_mask in tqdm.tqdm(dataloader, total=dataset.num_loops, disable=(rank != 0)):
                 X_train = X_train.to(device)
                 y_train = y_train.to(device)
+                y_train_mask = y_train_mask.to(device)
                 optimizer.zero_grad()
                 
                 output = None
                 loss = None
                 with pt.set_grad_enabled(True):
                     output = model(X_train)
+                    output = output + y_train_mask
                     loss = lossfn(output, y_train)
                     loss.backward()
                     optimizer.step()
@@ -168,6 +171,7 @@ def run(world_size, rank):
                 del loss
                 del X_train
                 del y_train
+                del y_train_mask
 
                 gc.collect()
                 pt.cuda.empty_cache()
