@@ -94,7 +94,7 @@ def main():
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
     dataset = C20data(validation, validation_file, data_files, badnames, ynames, xstd, xmean, num_batches)
-    dataloader = pt.utils.data.DataLoader(dataset, num_workers=4, prefetch_factor=80, pin_memory=True)
+    dataloader = pt.utils.data.DataLoader(dataset, num_workers=10, prefetch_factor=80, pin_memory=True)
 
     for epoch in range(start_epoch, num_epochs):
         print(f"Epoch {epoch} / {num_epochs}")
