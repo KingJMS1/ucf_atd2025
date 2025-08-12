@@ -35,13 +35,13 @@ def main():
     model = nn.Sequential(
         nn.Linear(inp_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.3),
+        nn.Dropout(0.5),
         nn.Linear(h_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.3),
+        nn.Dropout(0.5),
         nn.Linear(h_dim, h_dim // 2),
         nn.ReLU(),
-        nn.Dropout(0.3),
+        nn.Dropout(0.5),
         # nn.Linear(h_dim // 2, h_dim // 2),
         # nn.ReLU(),
         # nn.Dropout(0.2),
@@ -83,7 +83,7 @@ def main():
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
-    optimizer = pt.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = pt.optim.Adam(model.parameters(), lr=0.002)
     # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
 
     scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
