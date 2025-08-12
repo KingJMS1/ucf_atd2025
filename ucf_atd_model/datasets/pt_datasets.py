@@ -89,8 +89,8 @@ class C20data(pt.utils.data.IterableDataset):
                         all_data = all_data.difference(self.validation)
                     
                     all_data = sorted(list(all_data))
-                    batches = list(it.batched(all_data, (len(all_data) // num_workers) - 1))
-                    mybatch = batches[worker_id]
+                    batches = list(it.batched(all_data, num_workers))
+                    mybatch = [x[worker_id] for x in batches if worker_id < len(x)]
 
                     for idx in mybatch:
                         table: pd.DataFrame = fulldata.read_row_group(idx).to_pandas(self_destruct = True).replace([np.inf, -np.inf], np.nan).dropna()
