@@ -22,7 +22,7 @@ from ucf_atd_model.datasets.pt_datasets import C20data
 
     
 def run(world_size, rank):
-    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank, device_id=0)
+    dist.init_process_group("nccl", world_size=world_size, rank=rank, device_id=0)
     badnames = [x for x in full_names if x.endswith("_16")]
     ynames = [x for x in const.ynames if not x.endswith("_16")]
 
@@ -182,6 +182,6 @@ def run(world_size, rank):
     dist.destroy_process_group()
 
 if __name__ == "__main__":
-    world_size = int(os.environ.get("SLURM_NTASKS"))
-    rank = int(os.environ.get("SLURM_PROCID"))
+    world_size = int(os.environ.get("WORLD_SIZE"))
+    rank = int(os.environ.get("RANK"))
     run(world_size, rank)
