@@ -84,7 +84,7 @@ def run(world_size, rank):
 
     # Setup the distributed trainer
     num_epochs = 1000
-    num_batches = 20
+    num_batches = 5
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
