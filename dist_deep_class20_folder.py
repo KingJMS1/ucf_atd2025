@@ -84,7 +84,7 @@ def run(world_size, rank):
 
     # Setup the distributed trainer
     num_epochs = 1000
-    num_batches = 80
+    num_batches = 20
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
@@ -101,7 +101,7 @@ def run(world_size, rank):
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
     dataset = C20data(validation, validation_file, data_files, badnames, ynames, xstd, xmean, num_batches)
-    dataloader = pt.utils.data.DataLoader(dataset, num_workers=6, prefetch_factor=300, pin_memory=True)
+    dataloader = pt.utils.data.DataLoader(dataset, num_workers=6, prefetch_factor=75, pin_memory=True)
 
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
