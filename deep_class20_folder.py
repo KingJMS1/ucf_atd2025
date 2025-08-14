@@ -25,6 +25,8 @@ def main():
     validation_file = data_files[0]
     validation = [0, 1, 2]
 
+    folder = "checkpoints/small_deep20"
+
     inp_dim = len(colnames) - len(badnames) + 1
     print(inp_dim)
     h_dim = 3000
@@ -80,15 +82,15 @@ def main():
     num_epochs = 1000
     num_batches = 80
 
-    # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
+    model.load_state_dict(pt.load(f"{folder}/epoch_20.pt"))
 
     optimizer = pt.optim.AdamW(model.parameters(), lr=0.000004, weight_decay=0.002)
-    # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
+    optimizer.load_state_dict(pt.load(f"{folder}/optim_20.pt"))
 
     scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    # scheduler.load_state_dict(pt.load("checkpoints/sched_25.pt"))
+    scheduler.load_state_dict(pt.load(f"{folder}/sched_20.pt"))
     # scheduler.step()
-    start_epoch = 0
+    start_epoch = 21
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
@@ -144,7 +146,7 @@ def main():
         endTime = time()
         print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
 
-        if epoch % 10 == 0:
+        if epoch % 5 == 0:
             pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
             pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
             pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
