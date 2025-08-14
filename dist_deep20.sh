@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=deep20
 #SBATCH --output=deep20_%j.txt    
-#SBATCH --nodes=2                          # number of nodes you want to use
-#SBATCH --ntasks=2                        # number of processes to be run
-#SBATCH --cpus-per-task=4
+#SBATCH --nodes=4                          # number of nodes you want to use
+#SBATCH --ntasks=4                         # number of processes to be run
+#SBATCH --cpus-per-task=10
 #SBATCH --mem=64G
 #SBATCH --gpus-per-node=1                 # every node wants one GPU
 #SBATCH --constraint=h100                 # get h100s
 #SBATCH --gpu-bind=none                   # NCCL can't deal with task-binding...
-#SBATCH --time=1:00:00
+#SBATCH --time=7:00:00
 
 module load anaconda
 conda activate pyproj
