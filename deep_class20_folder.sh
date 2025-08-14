@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH --gpus-per-node=1                 # every node wants one GPU
 #SBATCH --constraint=h100                 # get h100s
-#SBATCH --time=7:00:00
+#SBATCH --time=5:00:00
 
 module load anaconda
 conda activate pyproj
