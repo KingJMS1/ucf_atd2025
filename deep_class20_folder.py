@@ -90,7 +90,7 @@ def main():
     scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     scheduler.load_state_dict(pt.load(f"{folder}/sched_30.pt"))
     # scheduler.step()
-    start_epoch = 21
+    start_epoch = 31
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
