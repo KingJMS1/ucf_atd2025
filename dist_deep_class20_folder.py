@@ -106,80 +106,80 @@ def run(world_size, rank):
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
-    # tracing_schedule = schedule(wait=1000, warmup=100, active=100)
+    tracing_schedule = schedule(wait=10, warmup=10, active=20)
 
-    # with profile(
-    #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-    #     record_shapes=False,
-    #     with_stack=False,
-    #     with_flops=False,
-    #     schedule=tracing_schedule,
-    #     on_trace_ready=tensorboard_trace_handler(f"tboard", rank, use_gzip=True)
-    # ) as prof:
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        record_shapes=False,
+        with_stack=False,
+        with_flops=False,
+        schedule=tracing_schedule,
+        on_trace_ready=tensorboard_trace_handler(f"tboard", rank, use_gzip=True)
+    ) as prof:
             
-    for epoch in range(start_epoch, num_epochs):
-        if rank == 0:
-            print(f"Epoch {epoch} / {num_epochs}", flush=True)
-        startTime = time()
-        
-        epoch_train_loss = 0
-
-        # Evaluate model
-        if rank == 0:
-            model.eval()
-            with pt.no_grad():
-                tot_loss = 0
-                n_loss = 0
-                for xb, yb, ym in dataset.rebatch(X_test, y_test, y_test_mask):
-                    xb = xb.to(device)
-                    yb = yb.to(device)
-                    ym = ym.to(device)
-                    output = model(xb)
-                    output = output + ym
-                    loss = lossfn(output, yb)
-                    n_loss += xb.shape[0]
-                    
-                    tot_loss += loss.item()
-                    
-                print(f"    Test Loss: {tot_loss / n_loss:.3f}")
-        
-        dist.barrier()
-
-        # Train the model
-        model.train()
-        for X_train, y_train, y_train_mask in tqdm.tqdm(dataloader, total=dataset.num_loops, disable=(rank != 0)):
-            X_train = X_train.to(device)
-            y_train = y_train.to(device)
-            y_train_mask = y_train_mask.to(device)
-            optimizer.zero_grad()
+        for epoch in range(start_epoch, num_epochs):
+            if rank == 0:
+                print(f"Epoch {epoch} / {num_epochs}", flush=True)
+            startTime = time()
             
-            output = None
-            loss = None
-            with pt.set_grad_enabled(True):
-                output = model(X_train)
-                output = output + y_train_mask
-                loss = lossfn(output, y_train)
-                loss.backward()
-                optimizer.step()
+            epoch_train_loss = 0
+
+            # Evaluate model
+            if rank == 0:
+                model.eval()
+                with pt.no_grad():
+                    tot_loss = 0
+                    n_loss = 0
+                    for xb, yb, ym in dataset.rebatch(X_test, y_test, y_test_mask):
+                        xb = xb.to(device)
+                        yb = yb.to(device)
+                        ym = ym.to(device)
+                        output = model(xb)
+                        output = output + ym
+                        loss = lossfn(output, yb)
+                        n_loss += xb.shape[0]
+                        
+                        tot_loss += loss.item()
+                        
+                    print(f"    Test Loss: {tot_loss / n_loss:.3f}")
+            
+            dist.barrier()
+
+            # Train the model
+            model.train()
+            for X_train, y_train, y_train_mask in tqdm.tqdm(dataloader, total=dataset.num_loops, disable=(rank != 0)):
+                X_train = X_train.to(device)
+                y_train = y_train.to(device)
+                y_train_mask = y_train_mask.to(device)
+                optimizer.zero_grad()
+                
+                output = None
+                loss = None
+                with pt.set_grad_enabled(True):
+                    output = model(X_train)
+                    output = output + y_train_mask
+                    loss = lossfn(output, y_train)
+                    loss.backward()
+                    optimizer.step()
+
+                if rank == 0:
+                    epoch_train_loss += loss.item()
+                
+                prof.step()
 
             if rank == 0:
-                epoch_train_loss += loss.item()
-            
-            # prof.step()
+                print(f"    Train Loss (rank 0): {epoch_train_loss:.3f}")
+                endTime = time()
+                print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
 
-        if rank == 0:
-            print(f"    Train Loss (rank 0): {epoch_train_loss:.3f}")
-            endTime = time()
-            print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
+            if (epoch % 10 == 0) and (rank == 1):
+                pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
+                pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
+                pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
+            scheduler.step()
 
-        if (epoch % 10 == 0) and (rank == 1):
-            pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
-            pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
-            pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
-        scheduler.step()
-
-    dist.barrier()
-    dist.destroy_process_group()
+        dist.barrier()
+        dist.destroy_process_group()
 
 if __name__ == "__main__":
     world_size = int(os.environ.get("WORLD_SIZE"))
