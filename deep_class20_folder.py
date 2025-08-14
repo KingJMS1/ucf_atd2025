@@ -27,7 +27,7 @@ def main():
 
     inp_dim = len(colnames) - len(badnames) + 1
     print(inp_dim)
-    h_dim = 1000
+    h_dim = 3000
     out_dim = n_norm_classes + 1 - 1
 
     device = pt.device("cuda:0")
@@ -35,10 +35,9 @@ def main():
     model = nn.Sequential(
         nn.Linear(inp_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.5),
         nn.Linear(h_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.5),
+        nn.Dropout(0.1),
         nn.Linear(h_dim, h_dim // 2),
         nn.ReLU(),
         nn.Dropout(0.5),
@@ -79,14 +78,14 @@ def main():
 
 
     num_epochs = 1000
-    num_batches = 40
+    num_batches = 80
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
-    optimizer = pt.optim.Adam(model.parameters(), lr=0.002)
+    optimizer = pt.optim.AdamW(model.parameters(), lr=0.000004, weight_decay=0.002)
     # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
 
-    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
+    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     # scheduler.load_state_dict(pt.load("checkpoints/sched_25.pt"))
     # scheduler.step()
     start_epoch = 0
@@ -94,7 +93,7 @@ def main():
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
     dataset = C20data(validation, validation_file, data_files, badnames, ynames, xstd, xmean, num_batches)
-    dataloader = pt.utils.data.DataLoader(dataset, num_workers=12, prefetch_factor=300, pin_memory=True)
+    dataloader = pt.utils.data.DataLoader(dataset, num_workers=3, prefetch_factor=300, pin_memory=True)
 
     for epoch in range(start_epoch, num_epochs):
         print(f"Epoch {epoch} / {num_epochs}")
@@ -106,6 +105,7 @@ def main():
         model.eval()
         with pt.no_grad():
             tot_loss = 0
+            n_loss = 0
             for xb, yb, ym in dataset.rebatch(X_test, y_test, y_test_mask):
                 xb = xb.to(device)
                 yb = yb.to(device)
@@ -113,19 +113,12 @@ def main():
                 output = model(xb)
                 output = output + ym
                 loss = lossfn(output, yb)
+                n_loss += xb.shape[0]
                 
                 tot_loss += loss.item()
                 
-                # del output
-                # del loss
-                # del xb
-                # del yb
-                # del ym
-            print(f"    Test Loss: {tot_loss:.3f}")
+            print(f"    Test Loss: {tot_loss / n_loss:.3f}")
         
-
-        # gc.collect()
-        # pt.cuda.empty_cache()
 
         # Train the model
         model.train()
@@ -146,15 +139,6 @@ def main():
                 # del output
 
             epoch_train_loss += loss.item()
-            # del loss
-            # del X_train
-            # del y_train
-            # del y_train_mask
-
-            # Tab over for my computer
-            # gc.collect()
-            # pt.cuda.empty_cache()
-
         
         print(f"    Train Loss: {epoch_train_loss:.2f}")
         endTime = time()
