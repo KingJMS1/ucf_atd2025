@@ -22,7 +22,7 @@ from ucf_atd_model.datasets.pt_datasets import C20data
 
     
 def run(world_size, rank):
-    dist.init_process_group("nccl", init_method=Path(new_data_loc("comms")).resolve().as_uri(), world_size=world_size, rank=rank, device_id=0)
+    dist.init_process_group("nccl", world_size=world_size, rank=rank, device_id=0)
     badnames = [x for x in full_names if x.endswith("_16")]
     ynames = [x for x in const.ynames if not x.endswith("_16")]
 
@@ -41,16 +41,15 @@ def run(world_size, rank):
     model = nn.Sequential(
         nn.Linear(inp_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.3),
         nn.Linear(h_dim, h_dim),
         nn.ReLU(),
-        nn.Dropout(0.3),
+        nn.Dropout(0.1),
         nn.Linear(h_dim, h_dim // 2),
         nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(h_dim // 2, h_dim // 2),
-        nn.ReLU(),
-        nn.Dropout(0.2),
+        nn.Dropout(0.5),
+        # nn.Linear(h_dim // 2, h_dim // 2),
+        # nn.ReLU(),
+        # nn.Dropout(0.2),
         nn.Linear(h_dim // 2, out_dim),
     ).to(device)
 
@@ -83,33 +82,31 @@ def run(world_size, rank):
 
         X_test = (X_test - xmean) / xstd
 
-    y_test_mask_gpu = y_test_mask.to(device)
-
     # Setup the distributed trainer
-    num_epochs = 100
-    gpu_batch_size = 1
+    num_epochs = 1000
+    num_batches = 5
 
     # model.load_state_dict(pt.load("checkpoints/epoch_25.pt"))
 
     model = DistributedDataParallel(model, [0])
 
-    optimizer = pt.optim.Adam(model.parameters(), lr=0.0008)
+    optimizer = pt.optim.AdamW(model.parameters(), lr=0.000004, weight_decay=0.002)
     # optimizer.load_state_dict(pt.load("checkpoints/optim_25.pt"))
 
-    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
+    scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     # scheduler.load_state_dict(pt.load("checkpoints/sched_25.pt"))
     # scheduler.step()
     start_epoch = 0
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
-    dataset = C20data(validation, validation_file, data_files, badnames, ynames, xstd, xmean, gpu_batch_size)
-    dataloader = pt.utils.data.DataLoader(dataset, num_workers=2, prefetch_factor=2)
+    dataset = C20data(validation, validation_file, data_files, badnames, ynames, xstd, xmean, num_batches)
+    dataloader = pt.utils.data.DataLoader(dataset, num_workers=6, prefetch_factor=75, pin_memory=True)
 
     print(f"Ready on {rank}", flush=True)
     dist.barrier()
 
-    tracing_schedule = schedule(wait=100, warmup=20, active=10)
+    tracing_schedule = schedule(wait=10, warmup=10, active=20)
 
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -122,7 +119,7 @@ def run(world_size, rank):
             
         for epoch in range(start_epoch, num_epochs):
             if rank == 0:
-                print(f"Epoch {epoch} / {num_epochs}")
+                print(f"Epoch {epoch} / {num_epochs}", flush=True)
             startTime = time()
             
             epoch_train_loss = 0
@@ -132,19 +129,19 @@ def run(world_size, rank):
                 model.eval()
                 with pt.no_grad():
                     tot_loss = 0
-                    output = model(X_test.to(device))
-                    output = output + y_test_mask_gpu
-                    loss = lossfn(output, y_test.to(device))
-                    
-                    tot_loss += loss.item()
-                    
-                    del output
-                    del loss
-                    print(f"    Test Loss: {tot_loss:.3f}")
-                
-
-                gc.collect()
-                pt.cuda.empty_cache()
+                    n_loss = 0
+                    for xb, yb, ym in dataset.rebatch(X_test, y_test, y_test_mask):
+                        xb = xb.to(device)
+                        yb = yb.to(device)
+                        ym = ym.to(device)
+                        output = model(xb)
+                        output = output + ym
+                        loss = lossfn(output, yb)
+                        n_loss += xb.shape[0]
+                        
+                        tot_loss += loss.item()
+                        
+                    print(f"    Test Loss: {tot_loss / n_loss:.3f}")
             
             dist.barrier()
 
@@ -164,17 +161,10 @@ def run(world_size, rank):
                     loss = lossfn(output, y_train)
                     loss.backward()
                     optimizer.step()
-                    del output
 
                 if rank == 0:
                     epoch_train_loss += loss.item()
-                del loss
-                del X_train
-                del y_train
-                del y_train_mask
-
-                gc.collect()
-                pt.cuda.empty_cache()
+                
                 prof.step()
 
             if rank == 0:
@@ -188,10 +178,10 @@ def run(world_size, rank):
                 pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
             scheduler.step()
 
-    dist.barrier()
-    dist.destroy_process_group()
+        dist.barrier()
+        dist.destroy_process_group()
 
 if __name__ == "__main__":
-    world_size = int(os.environ.get("SLURM_NTASKS"))
-    rank = int(os.environ.get("SLURM_PROCID"))
+    world_size = int(os.environ.get("WORLD_SIZE"))
+    rank = int(os.environ.get("RANK"))
     run(world_size, rank)
