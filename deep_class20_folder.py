@@ -82,15 +82,15 @@ def main():
     num_epochs = 1000
     num_batches = 80
 
-    model.load_state_dict(pt.load(f"{folder}/epoch_30.pt"))
+    model.load_state_dict(pt.load(f"{folder}/epoch_38.pt"))
 
     optimizer = pt.optim.AdamW(model.parameters(), lr=0.000004, weight_decay=0.002)
-    optimizer.load_state_dict(pt.load(f"{folder}/optim_30.pt"))
+    optimizer.load_state_dict(pt.load(f"{folder}/optim_38.pt"))
 
     scheduler = pt.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    scheduler.load_state_dict(pt.load(f"{folder}/sched_30.pt"))
+    scheduler.load_state_dict(pt.load(f"{folder}/sched_38.pt"))
     # scheduler.step()
-    start_epoch = 31
+    start_epoch = 39
 
     lossfn = nn.CrossEntropyLoss(reduction="sum")
 
@@ -146,7 +146,7 @@ def main():
         endTime = time()
         print(f"    Time Elapsed: {(endTime - startTime):.3f} seconds")
 
-        if epoch % 2 == 0:
+        if epoch % 10 == 0:
             pt.save(model.state_dict(), f"checkpoints/epoch_{epoch}.pt")
             pt.save(optimizer.state_dict(), f"checkpoints/optim_{epoch}.pt")
             pt.save(scheduler.state_dict(), f"checkpoints/sched_{epoch}.pt")
