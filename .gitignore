@@ -9,11 +9,9 @@ __pycache__/
 # Geospatial/Bulk files
 *.geojson
 *.kml
-*.csv
 *.parquet
 *.sqlite3
 *.zip
-*.npy
 *_out.txt
 *.lgbm
 
