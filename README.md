@@ -19,3 +19,5 @@ We briefly describe what each file here does.
 16. xmean/xstd: Normalizing constants needed to run the hybrid model
 
 If you clone this repo, make sure to switch to this branch via `git checkout export_book`. The main branch is much messier and contains many files needed to run things via SLURM, and some unused models that are not necessary here.
+
+To run grading code, the ATD2025 package must be installed, which is available here: https://gitlab.com/algorithms-for-threat-detection/2025/atd2025.
